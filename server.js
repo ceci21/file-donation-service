@@ -1,27 +1,29 @@
-var express = require('express');
-var bodyParser = require('body-parser');
-var app = express();
-app.use(bodyParser.urlencoded({ extended: true }));
+const express = require('express');
+const bodyParser = require('body-parser');
+const app = express();
+const timeout = require('connect-timeout');
 
+app.use(timeout('5s'));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-var fs = require('fs');
-var dbFile = './.data/sqlite.db';
-var exists = fs.existsSync(dbFile);
-var sqlite3 = require('sqlite3').verbose();
-var db = new sqlite3.Database(dbFile);
+const fs = require('fs');
+const dbFile = './.data/sqlite.db';
+const exists = fs.existsSync(dbFile);
+const sqlite3 = require('sqlite3').verbose();
+const db = new sqlite3.Database(dbFile);
 
 db.serialize(function() {
   if (!exists) {
-    db.run('CREATE TABLE Donors (donor_name TEXT, donations_count INT)');
-    db.run('CREATE TABLE DonationsMeta (counter_name TEXT, donations_count INT)');
+    db.run('CREATE TABLE Donors (donor_name TEXT, donation_count INT)');
+    db.run('CREATE TABLE DonationsMeta (counter_name TEXT, donation_count INT)');
     console.log('New table Donors and DonationsMeta created!');
 
     // insert default donations
     db.serialize(function() {
-      db.run('INSERT INTO Donors (donor_name, donations_count) VALUES ("johnny", 1)');
-      db.run('INSERT INTO DonationsMeta (counter_name, donations_count) VALUES ("anonymous", 0)');
-      db.run('INSERT INTO DonationsMeta (counter_name, donations_count) VALUES ("named", 1)');
+      db.run('INSERT INTO Donors (donor_name, donation_count) VALUES ("johnny", 1)');
+      db.run('INSERT INTO DonationsMeta (counter_name, donation_count) VALUES ("anonymous", 0)');
+      db.run('INSERT INTO DonationsMeta (counter_name, donation_count) VALUES ("named", 1)');
     });
   } else {
     console.log('Database "Donors" and "DonationsMeta" ready to go!');
@@ -35,70 +37,113 @@ app.get('/', function(request, response) {
 
 // anonymous donor
 app.get('/donate', (req, res) => {
-  // db.get('SELECT 1 FROM DonationsMeta WHERE id = "anonymous"')
-  db.run('UPDATE DonationsMeta SET donations_count = donations_count + 1 WHERE id = "anonymous"');
+  try {
+    db.run('UPDATE DonationsMeta SET donation_count = donation_count + 1 WHERE counter_name = "anonymous"');
+    res.status(200).send('Successful anonymous donation');
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(JSON.stringify(err));
+  }
+});
+
+app.get('/donationData', (req, res) => {
+  // Route for general donation statistics
+  try {
+    db.get('SELECT * FROM DonationsMeta', (dbErr, result) => {
+      if (dbErr) {
+        res.status(500).send(dbErr);
+        return console.log(dbErr);
+      }
+      return res.status(200).send(JSON.stringify(result));
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(JSON.stringify(err));
+  }
 });
 
 app.get('/test', (req, res) => {
-  let finalResults = {
-    donors: {},
-    donationsMeta: {}
-  };
-  db.all('SELECT * FROM Donors', (err_1, res_1) => {
-    finalResults.donors = res_1;
-    db.all('SELECT * FROM DonationsMeta', (err_2, res_2) => {
-      console.log(res_2);
-      finalResults.donationsMeta = res_2;
-      res.status(200).send(JSON.stringify(finalResults));
+  try {
+    let finalResults = {
+      donors: {},
+      donationsMeta: {}
+    };
+    db.all('SELECT * FROM Donors', (err_1, res_1) => {
+      finalResults.donors = res_1;
+      db.all('SELECT * FROM DonationsMeta', (err_2, res_2) => {
+        finalResults.donationsMeta = res_2;
+        res.status(200).send(JSON.stringify(finalResults));
+      });
     });
-  });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(JSON.stringify(err));
+  }
+});
+
+app.get('/rst/:donor', (req, res) => {
+
+});
+
+app.get('/rmv/:donor', (req, res) => {
+
 });
 
 app.get('/donate/:donor', (req, res) => {
-  // If donor exists, increment value at that donor name. Otherwise, create a new entry with that name with a value of 1.
+  /*
+    If donor, add 1 to their donation count.
+    If no donor, create donor entry with a donation count of 1.
+    Increment named donor count statistic.
+  */
+
   if (req && req.params && req.params.donor) {
     let donorName = req.params.donor;
+
     if (typeof donorName === 'string' && donorName.length > 1 && !/[^a-zA-Z0-9]/.test(donorName)) {
       donorName = donorName.toLowerCase();
-      const getDonationsCount = `SELECT donations_count FROM Donors WHERE donor_name = "${donorName}"`;
-      db.get(getDonationsCount, (err, entry) => {
-        if (err) {
-          res.status(404).send('Not found. Error:\n' + JSON.stringify(err));
-          return console.log('Not found. Error:\n', JSON.stringify(err));
-        }
-        if (entry && entry.donations_count && !isNaN(Number(entry.donations_count))) {
-          const donationsCount = entry.donations_count + 1;
-          console.log('total donations for', donorName, donationsCount);
-          const incrementDonationsCount = `UPDATE Donors SET donations_count = ${donationsCount} WHERE donor_name = "${donorName}"`;
-          const incrementNamedDonationsCount = 'UPDATE DonationsMeta SET donations_count = donations_count + 1 WHERE counter_name = "named"';
+      const getDonationCount = `SELECT donation_count FROM Donors WHERE donor_name = "${donorName}"`;
 
-          db.serialize(() => {
-            db.run(incrementDonationsCount);
-            db.run(incrementNamedDonationsCount);
-          });
-          res.status(200).send(`total donations: ${donationsCount}`);
-        } else {
-          const addNewDonor = `INSERT INTO Donors (donor_name, donations_count) VALUES ("${donorName}", 1)`;
-          db.run(addNewDonor);
-          res.status(200).send(`Added new donor ${donorName}!`)
+      db.get(getDonationCount, (err, entry) => {
+        if (err) {
+          res.status(404).send(JSON.stringify(err));
+          return console.log(JSON.stringify(err));
         }
+        const incrementNamedDonationCount = 'UPDATE DonationsMeta SET donation_count = donation_count + 1 WHERE counter_name = "named"';
+
+        if (entry && entry.donation_count && !isNaN(Number(entry.donation_count))) {
+          const donationCount = entry.donation_count + 1;
+          const incrementDonationCount = `UPDATE Donors SET donation_count = ${donationCount} WHERE donor_name = "${donorName}"`;
+          // If no donor, create donor entry with a donation count of 1.
+          db.run(incrementDonationCount);
+          res.status(200).send(`total donations: ${donationCount}`);
+        } else {
+          const addNewDonor = `INSERT INTO Donors (donor_name, donation_count) VALUES ("${donorName}", 1)`;
+          db.run(addNewDonor);
+          res.status(200).send(`Added new donor ${donorName}!`);
+        }
+        // Increment named donor count statistic.
+        db.run(incrementNamedDonationCount);
       });
     }
   }
 });
 
-app.get('/donations', (req, res) => {
-  db.all('SELECT * from Donors', (err, rows) => {
-    res.send(JSON.stringify(rows));
-  });
+// Get donors
+app.get('/donors', (req, res) => {
+  try {
+    db.all('SELECT * from Donors', (dbErr, donors) => {
+      if (dbErr) {
+        console.log(dbErr);
+        return res.status(500).send(JSON.stringify(dbErr));
+      }
+      return res.status(200).send(JSON.stringify(donors));
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send(JSON.stringify(err));
+  }
 });
 
-// app.get("/getDreams", function(request, response) {
-//   db.all("SELECT * from Dreams", function(err, rows) {
-//     response.send(JSON.stringify(rows));
-//   });
-// });
-
-var listener = app.listen(process.env.PORT, function() {
+const listener = app.listen(process.env.PORT, function() {
   console.log('Your app is listening on port ' + listener.address().port);
 });
