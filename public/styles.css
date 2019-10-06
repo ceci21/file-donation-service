@@ -1,0 +1,53 @@
+.file-upload {
+  display: block;
+}
+
+.upload-text-container {
+  width: 500px;
+  height: 60px;
+}
+
+.upload-text {
+  font-size: 40px;
+}
+
+.upload-text div {
+  position: absolute;
+}
+
+.upload-text.pulsate {
+  display: block;
+  margin-left: 32px;
+}
+
+.upload-text.pulsate div {
+  animation-duration: 3s;
+  animation-name: pulse;
+  animation-iteration-count: infinite;
+}
+
+.upload-text.pulsate div:nth-child(1) {
+  animation-delay: 1s;
+  color: red;
+}
+.upload-text.pulsate div:nth-child(2) {
+  animation-delay: 2s;
+  color: green;
+}
+
+.hide { display: none; }
+
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
