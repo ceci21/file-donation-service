@@ -8,7 +8,15 @@
     <div>
       <p>Donate your file below!</p>
     </div>
+    <form>
+    <div class="donor-name-container">
+      We take record of our most generous donors. Please leave your name.
+      <input class="donor-name" type="text">
+      <div class="warning-msg hide">Name must be alphanumeric characters only!</div>
+    </div>
+    Download a backup for your record!
     <input class="file-upload-button" type="file" />
+    </form>
     <div class="upload-feedback-container">
       <a class="upload-feedback hide">
         <div>
@@ -26,7 +34,8 @@
     <a class="backup-download-link hide">
       <button>Download Backup</button>
     </a>
-    <div class="donors-chart"></div>
+    <div class="donors-chart"><h1>Loving Donors</h1></div>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

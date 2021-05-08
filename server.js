@@ -2,10 +2,12 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 const timeout = require('connect-timeout');
+const cors = require('cors');
 
-app.use(timeout('5s'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
+
+app.use(cors());
 
 const fs = require('fs');
 const dbFile = './.data/sqlite.db';
@@ -81,13 +83,9 @@ app.get('/test', (req, res) => {
   }
 });
 
-app.get('/rst/:donor', (req, res) => {
+app.get('/rst/:donor', (req, res) => {});
 
-});
-
-app.get('/rmv/:donor', (req, res) => {
-
-});
+app.get('/rmv/:donor', (req, res) => {});
 
 app.get('/donate/:donor', (req, res) => {
   /*

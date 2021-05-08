@@ -35,6 +35,10 @@
   color: green;
 }
 
+.warning-msg {
+  color: red;
+}
+
 .hide { display: none; }
 
 
